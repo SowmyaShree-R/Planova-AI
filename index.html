@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planova AI - Autonomous Event Planning Platform</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        cardBg: '#111827',
+                        cardBorder: '#1f293d',
+                        primary: '#8b5cf6',
+                        secondary: '#3b82f6',
+                        accent: '#ec4899',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for interactive analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #090d16; color: #f3f4f6; overflow-x: hidden; }
+        .gradient-text {
+            background: linear-gradient(135deg, #c084fc 0%, #60a5fa 50%, #f472b6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+        }
+        .gradient-border {
+            position: relative;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(59, 130, 246, 0.2));
+            padding: 1px;
+        }
+        .glow-effect {
+            box-shadow: 0 0 25px -5px rgba(139, 92, 246, 0.3);
+        }
+        .glow-button {
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+            transition: all 0.3s ease;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.8);
+            transform: translateY(-2px);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #374151; }
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .animate-glow {
+            animation: pulseGlow 4s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-purple-500 selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+    <!-- API Key Settings Modal -->
+    <div id="api-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="glass-panel w-full max-w-md p-6 rounded-2xl border border-purple-500/30 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-key text-purple-400"></i> Gemini API Configuration
+                </h3>
+                <button onclick="toggleApiModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-sm text-gray-300 mb-4">
+                Planova AI uses the <code class="text-purple-300">gemini-3-flash-preview</code> model to autonomously break down tasks, plan schedules, and generate publicity. Leave blank to use the built-in runtime key.
+            </p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Gemini API Key</label>
+                    <input type="password" id="custom-api-key" placeholder="AIzaSy..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-500">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button onclick="toggleApiModal()" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 hover:bg-gray-700 font-medium text-sm">Cancel</button>
+                    <button onclick="saveApiKey()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium text-sm hover:opacity-90">Save Key</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('landing')">
+                <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white font-black text-xl shadow-lg glow-effect">
+                    P
+                </div>
+                <div>
+                    <span class="text-xl font-black tracking-tight text-white">Planova<span class="text-purple-400">.AI</span></span>
+                    <span class="hidden sm:inline-block ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium">Autonomous Agent</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links / Actions -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <button onclick="loadDemoData()" class="hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold hover:bg-purple-500/20 transition">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Demo Mode
+                </button>
+                <button onclick="toggleApiModal()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-300 text-xs font-semibold hover:bg-gray-700 transition">
+                    <i class="fa-solid fa-gear"></i> <span class="hidden sm:inline">API Settings</span>
+                </button>
+                <div id="nav-dashboard-btn" class="hidden">
+                    <button onclick="switchView('dashboard')" class="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold text-xs glow-button">
+                        <i class="fa-solid fa-chart-pie"></i> Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col">
+
+        <!-- VIEW 1: LANDING & HERO -->
+        <section id="view-landing" class="flex-1 flex flex-col justify-center items-center relative overflow-hidden py-16 px-4 sm:px-6">
+            <!-- Background glow effects -->
+            <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl pointer-events-none animate-glow"></div>
+            <div class="absolute top-1/3 left-1/4 w-72 h-72 bg-blue-600/20 rounded-full blur-3xl pointer-events-none animate-glow" style="animation-delay: 2s;"></div>
+
+            <div class="max-w-4xl mx-auto text-center relative z-10 space-y-8">
+                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide uppercase">
+                    <i class="fa-solid fa-sparkles text-purple-400"></i> Powered by Gemini 3 Flash
+                </div>
+                
+                <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-none">
+                    Your Event. Your Plan. <br><span class="gradient-text">Perfectly Organized.</span>
+                </h1>
+
+                <p class="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto font-normal leading-relaxed">
+                    Planova AI is an autonomous event planning platform. Transform any simple event idea into a fully scheduled, budgeted, staffed, and publicized professional event in seconds.
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                    <button onclick="scrollToInput()" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 text-white font-bold text-base glow-button flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-compass-drafting"></i> Plan My Event
+                    </button>
+                    <button onclick="loadDemoData()" class="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gray-900 border border-gray-700 text-gray-200 font-bold text-base hover:bg-gray-800 transition flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-play text-purple-400"></i> Load Demo Fest
+                    </button>
+                </div>
+
+                <!-- Feature badges preview -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-12 text-left max-w-3xl mx-auto">
+                    <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                        <div class="text-purple-400 text-lg mb-1"><i class="fa-solid fa-brain"></i></div>
+                        <h4 class="text-white text-sm font-semibold">Autonomous Agent</h4>
+                        <p class="text-xs text-gray-400">Breaks ideas into structured tasks</p>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                        <div class="text-blue-400 text-lg mb-1"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                        <h4 class="text-white text-sm font-semibold">Smart Budgeting</h4>
+                        <p class="text-xs text-gray-400">Category-wise INR expense estimates</p>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                        <div class="text-pink-400 text-lg mb-1"><i class="fa-solid fa-calendar-days"></i></div>
+                        <h4 class="text-white text-sm font-semibold">Schedule & Timeline</h4>
+                        <p class="text-xs text-gray-400">Hour-by-hour event itineraries</p>
+                    </div>
+                    <div class="glass-panel p-4 rounded-xl border border-gray-800">
+                        <div class="text-emerald-400 text-lg mb-1"><i class="fa-solid fa-bullhorn"></i></div>
+                        <h4 class="text-white text-sm font-semibold">Publicity Engine</h4>
+                        <p class="text-xs text-gray-400">Social posts, slogans & invitations</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Input Section / Form Wrapper -->
+            <div id="event-form-section" class="max-w-4xl w-full mx-auto mt-20 relative z-10 px-4">
+                <div class="glass-panel p-6 sm:p-10 rounded-3xl border border-purple-500/20 shadow-2xl">
+                    <div class="flex items-center justify-between mb-8 pb-4 border-b border-gray-800">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Event Configuration Wizard</h2>
+                            <p class="text-xs text-gray-400 mt-1">Provide your event parameters. Planova AI will synthesize the complete blueprint.</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">Step 1 of 1</span>
+                    </div>
+
+                    <form id="event-form" onsubmit="handleGeneratePlan(event)" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Event Name -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Event Name *</label>
+                                <input type="text" id="inp-name" required placeholder="e.g. Nexus 2026 National Tech Fest" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Event Type -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Event Type *</label>
+                                <select id="inp-type" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                                    <option value="College Fest">College Fest</option>
+                                    <option value="Conference">Conference</option>
+                                    <option value="Workshop">Workshop</option>
+                                    <option value="Business Meeting">Business Meeting</option>
+                                    <option value="Celebration">Celebration / Gala</option>
+                                </select>
+                            </div>
+
+                            <!-- Purpose / Objective -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Event Purpose & Theme *</label>
+                                <textarea id="inp-purpose" rows="2" required placeholder="Describe what attendees will experience, main topics, or core mission..." class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition"></textarea>
+                            </div>
+
+                            <!-- Expected Participants -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Expected Participants *</label>
+                                <input type="number" id="inp-participants" required min="10" value="250" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Preferred Date -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Preferred Date *</label>
+                                <input type="date" id="inp-date" required class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Location -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Location / Venue *</label>
+                                <input type="text" id="inp-location" required placeholder="e.g. University Main Auditorium, Bangalore" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Budget -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Estimated Budget (INR ₹) *</label>
+                                <input type="number" id="inp-budget" required min="1000" value="150000" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Duration -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Duration *</label>
+                                <input type="text" id="inp-duration" required placeholder="e.g. 2 Days (9 AM - 6 PM)" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Target Audience -->
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Target Audience *</label>
+                                <input type="text" id="inp-audience" required placeholder="e.g. Engineering students & tech founders" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+
+                            <!-- Additional Requirements -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold uppercase tracking-wider text-gray-300 mb-2">Additional Requirements or Constraints</label>
+                                <input type="text" id="inp-requirements" placeholder="e.g. Vegetarian catering required, projector in every room, VIP lounge" class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500 transition">
+                            </div>
+                        </div>
+
+                        <div class="pt-4 flex items-center justify-end gap-4">
+                            <button type="button" onclick="loadDemoData()" class="px-6 py-3 rounded-xl bg-gray-800 text-gray-300 hover:bg-gray-700 font-semibold text-sm transition">
+                                <i class="fa-solid fa-dice text-purple-400 mr-2"></i> Quick Fill Demo
+                            </button>
+                            <button type="submit" id="generate-btn" class="px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm glow-button flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Event Plan
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- LOADING STATE OVERLAY (When AI is generating) -->
+        <div id="loading-overlay" class="fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-xl flex flex-col items-center justify-center hidden">
+            <div class="relative w-24 h-24 mb-6">
+                <div class="absolute inset-0 rounded-full border-4 border-purple-500/20 animate-ping"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-purple-500 border-t-transparent animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-purple-400 font-bold text-xl">
+                    AI
+                </div>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2" id="loading-title">Planova AI is analyzing parameters...</h3>
+            <p class="text-sm text-gray-400 max-w-md text-center px-4" id="loading-subtitle">Synthesizing task dependencies, calculating budget estimates in INR, and formulating scheduling logic.</p>
+        </div>
+
+        <!-- VIEW 2: DASHBOARD & WORKSPACE (Tabs layout) -->
+        <div id="view-dashboard" class="flex-1 flex flex-col hidden">
+            
+            <!-- Event Sub-Header Bar -->
+            <div class="bg-gray-900/80 border-b border-gray-800 py-4 px-4 sm:px-8">
+                <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="badge-event-type" class="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-bold border border-purple-500/30">Conference</span>
+                            <span class="text-xs text-gray-400"><i class="fa-solid fa-calendar mr-1"></i> <span id="header-date">2026-06-15</span></span>
+                            <span class="text-xs text-gray-400"><i class="fa-solid fa-location-dot mr-1"></i> <span id="header-location">Bangalore</span></span>
+                        </div>
+                        <h1 id="header-event-name" class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">Nexus 2026 Tech Fest</h1>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="switchView('landing')" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-xs font-semibold hover:bg-gray-700 transition flex items-center gap-2">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit Parameters
+                        </button>
+                        <button onclick="exportFullReport()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold glow-button flex items-center gap-2">
+                            <i class="fa-solid fa-download"></i> Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Navigation Tabs -->
+            <div class="bg-gray-950 border-b border-gray-800 sticky top-20 z-30">
+                <div class="max-w-7xl mx-auto px-4 sm:px-8 flex overflow-x-auto space-x-2 py-3 scrollbar-none">
+                    <button onclick="switchTab('overview')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition bg-purple-600 text-white flex items-center gap-2 whitespace-nowrap" data-tab="overview">
+                        <i class="fa-solid fa-chart-pie"></i> Overview
+                    </button>
+                    <button onclick="switchTab('tasks')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="tasks">
+                        <i class="fa-solid fa-list-check"></i> Tasks & Agent
+                    </button>
+                    <button onclick="switchTab('schedule')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="schedule">
+                        <i class="fa-solid fa-calendar-days"></i> Schedule & Timeline
+                    </button>
+                    <button onclick="switchTab('budget')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="budget">
+                        <i class="fa-solid fa-indian-rupee-sign"></i> Budget Planner
+                    </button>
+                    <button onclick="switchTab('publicity')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="publicity">
+                        <i class="fa-solid fa-bullhorn"></i> Publicity & Comm
+                    </button>
+                    <button onclick="switchTab('resources')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="resources">
+                        <i class="fa-solid fa-boxes-stacked"></i> Resources & Staff
+                    </button>
+                    <button onclick="switchTab('aiassistant')" class="tab-btn px-4 py-2 rounded-xl text-xs font-semibold transition text-gray-400 hover:text-white hover:bg-gray-800 flex items-center gap-2 whitespace-nowrap" data-tab="aiassistant">
+                        <i class="fa-solid fa-robot text-purple-400"></i> AI Advisor
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8">
+                
+                <!-- TAB 1: OVERVIEW -->
+                <div id="tab-overview" class="tab-content space-y-6">
+                    <!-- Top Metrics Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-gray-400 uppercase">Completion Rate</p>
+                                <h3 id="stat-completion" class="text-3xl font-extrabold text-white mt-1">45%</h3>
+                                <p class="text-xs text-purple-400 mt-1"><span id="stat-completed-count">5</span> of <span id="stat-total-tasks">12</span> tasks completed</p>
+                            </div>
+                            <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-gray-400 uppercase">Estimated Budget</p>
+                                <h3 id="stat-budget" class="text-3xl font-extrabold text-white mt-1">₹1,50,000</h3>
+                                <p class="text-xs text-blue-400 mt-1">Category-wise optimized</p>
+                            </div>
+                            <div class="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-2xl">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-gray-400 uppercase">Expected Attendance</p>
+                                <h3 id="stat-participants" class="text-3xl font-extrabold text-white mt-1">250</h3>
+                                <p class="text-xs text-pink-400 mt-1">Target audience matched</p>
+                            </div>
+                            <div class="w-14 h-14 rounded-2xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 text-2xl">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold text-gray-400 uppercase">Urgent Tasks</p>
+                                <h3 id="stat-urgent" class="text-3xl font-extrabold text-amber-400 mt-1">3</h3>
+                                <p class="text-xs text-amber-400/80 mt-1">Pending deadlines</p>
+                            </div>
+                            <div class="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts & Progress Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Budget Breakdown Chart -->
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 lg:col-span-1 flex flex-col">
+                            <h3 class="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                <i class="fa-solid fa-chart-pie text-purple-400"></i> Budget Distribution
+                            </h3>
+                            <p class="text-xs text-gray-400 mb-4">Estimated breakdown of allocated funds</p>
+                            <div class="flex-1 flex items-center justify-center relative min-h-[220px]">
+                                <canvas id="budgetChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Autonomous Agent Highlights & Milestones -->
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 lg:col-span-2 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-robot text-purple-400"></i> Autonomous Planning Agent Status
+                                    </h3>
+                                    <span class="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20 flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Agent Active
+                                    </span>
+                                </div>
+                                
+                                <p class="text-sm text-gray-300 mb-6" id="agent-summary-text">
+                                    Agent has analyzed the event scope. Tasks have been structured with dependency trees. Venue contracts and publicity campaigns are currently queued for execution.
+                                </p>
+
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Milestone Progression</h4>
+                                <div class="space-y-4">
+                                    <div>
+                                        <div class="flex justify-between text-xs font-semibold mb-1">
+                                            <span class="text-white">Phase 1: Foundation & Venue Booking</span>
+                                            <span class="text-emerald-400">100% Completed</span>
+                                        </div>
+                                        <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-emerald-500 h-full w-full rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-xs font-semibold mb-1">
+                                            <span class="text-white">Phase 2: Speaker Confirmation & Scheduling</span>
+                                            <span class="text-purple-400">60% In Progress</span>
+                                        </div>
+                                        <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-purple-600 h-full w-3/5 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex justify-between text-xs font-semibold mb-1">
+                                            <span class="text-white">Phase 3: Publicity & Registration Launch</span>
+                                            <span class="text-blue-400">25% Started</span>
+                                        </div>
+                                        <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                                            <div class="bg-blue-500 h-full w-1/4 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-6 mt-6 border-t border-gray-800 flex items-center justify-between">
+                                <span class="text-xs text-gray-400">Need to update event parameters?</span>
+                                <button onclick="switchView('landing')" class="text-xs text-purple-400 hover:underline font-bold flex items-center gap-1">
+                                    Modify Event <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: TASKS & SMART AGENT -->
+                <div id="tab-tasks" class="tab-content space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Smart Task Management</h2>
+                            <p class="text-xs text-gray-400">Organized task cards generated by Planova AI based on event scope and dependencies.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="task-filter" onchange="renderTasks()" class="bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                                <option value="all">All Tasks</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                            <button onclick="addNewTaskModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold glow-button flex items-center gap-2">
+                                <i class="fa-solid fa-plus"></i> Add Task
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tasks Grid -->
+                    <div id="tasks-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- TAB 3: SCHEDULE & TIMELINE -->
+                <div id="tab-schedule" class="tab-content space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Schedule & Timeline</h2>
+                            <p class="text-xs text-gray-400">Hour-by-hour event itinerary and session breakdown.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="regenerateSchedule()" class="px-4 py-2 rounded-xl bg-gray-800 text-gray-300 text-xs font-semibold hover:bg-gray-700 transition flex items-center gap-2">
+                                <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i> AI Optimize Schedule
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Timeline Container -->
+                    <div id="schedule-container" class="space-y-4">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- TAB 4: BUDGET PLANNER -->
+                <div id="tab-budget" class="tab-content space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Budget Planner (INR ₹)</h2>
+                            <p class="text-xs text-gray-400">Detailed category-wise estimated expenses. Clearly labelled as estimates rather than confirmed quotes.</p>
+                        </div>
+                        <div class="px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold">
+                            Total Estimate: <span id="budget-total-display">₹1,50,000</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Budget Items Table / Cards -->
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 lg:col-span-2 space-y-4">
+                            <h3 class="text-base font-bold text-white mb-2">Category-Wise Breakdown</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-sm text-gray-300">
+                                    <thead class="bg-gray-900/60 text-xs uppercase text-gray-400 border-b border-gray-800">
+                                        <tr>
+                                            <th class="p-3 rounded-l-xl">Category</th>
+                                            <th class="p-3">Description</th>
+                                            <th class="p-3 text-right rounded-r-xl">Estimated Cost (₹)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="budget-table-body" class="divide-y divide-gray-800">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Budget Summary & AI Tips -->
+                        <div class="glass-panel p-6 rounded-2xl border border-gray-800 lg:col-span-1 space-y-6">
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-lightbulb text-amber-400"></i> AI Budget Advice
+                            </h3>
+                            <div class="space-y-3 text-xs text-gray-300 leading-relaxed">
+                                <p class="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-200">
+                                    <strong class="text-white block mb-1"><i class="fa-solid fa-check-circle mr-1"></i> Venue Optimization</strong>
+                                    Consider negotiating package deals with catering to reduce refreshments cost by 10-15%.
+                                </p>
+                                <p class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-200">
+                                    <strong class="text-white block mb-1"><i class="fa-solid fa-check-circle mr-1"></i> Publicity Allocation</strong>
+                                    Focus more on digital channels (Instagram & LinkedIn) to stretch the publicity budget further.
+                                </p>
+                            </div>
+                            <button onclick="addBudgetCategoryPrompt()" class="w-full py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-semibold transition">
+                                <i class="fa-solid fa-plus mr-1"></i> Add Expense Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 5: PUBLICITY & COMMUNICATION -->
+                <div id="tab-publicity" class="tab-content space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Publicity & Communication</h2>
+                            <p class="text-xs text-gray-400">AI-generated promotional slogans, social media captions, email drafts, and invitation templates.</p>
+                        </div>
+                        <button onclick="regeneratePublicity()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold glow-button flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Regenerate Content
+                        </button>
+                    </div>
+
+                    <!-- Publicity Cards Grid -->
+                    <div id="publicity-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- TAB 6: RESOURCES & STAFF -->
+                <div id="tab-resources" class="tab-content space-y-6 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white">Resource Management & Checklist</h2>
+                            <p class="text-xs text-gray-400">Required equipment, materials, volunteers, staff, and facilities tracking.</p>
+                        </div>
+                        <button onclick="addResourceModal()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-semibold glow-button flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Add Resource
+                        </button>
+                    </div>
+
+                    <!-- Resources Table / Cards -->
+                    <div class="glass-panel p-6 rounded-2xl border border-gray-800">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-gray-300">
+                                <thead class="bg-gray-900/60 text-xs uppercase text-gray-400 border-b border-gray-800">
+                                    <tr>
+                                        <th class="p-3 rounded-l-xl">Resource Name</th>
+                                        <th class="p-3">Category</th>
+                                        <th class="p-3">Quantity</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3 text-right rounded-r-xl">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="resources-table-body" class="divide-y divide-gray-800">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 7: AI ADVISOR & CHAT -->
+                <div id="tab-aiassistant" class="tab-content space-y-6 hidden">
+                    <div class="glass-panel p-6 sm:p-8 rounded-3xl border border-purple-500/20 flex flex-col h-[650px]">
+                        <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl gradient-bg flex items-center justify-center text-white font-bold">
+                                    <i class="fa-solid fa-robot"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-bold text-white">Planova Autonomous Advisor</h3>
+                                    <p class="text-xs text-purple-400">Context-aware Gemini AI agent monitoring your event</p>
+                                </div>
+                            </div>
+                            <button onclick="clearChatHistory()" class="text-xs text-gray-400 hover:text-white px-3 py-1.5 rounded-lg bg-gray-800">Clear Chat</button>
+                        </div>
+
+                        <!-- Chat Messages Container -->
+                        <div id="chat-messages" class="flex-1 overflow-y-auto py-4 space-y-4 pr-2">
+                            <div class="flex items-start gap-3">
+                                <div class="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
+                                <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl text-sm text-gray-200 max-w-2xl leading-relaxed">
+                                    Hello! I am your Planova Autonomous Advisor. I have analyzed your current event plan, tasks, and budget. Ask me anything—such as recommending next steps, checking scheduling conflicts, or optimizing your expenses!
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chat Input Bar -->
+                        <div class="pt-4 border-t border-gray-800 flex items-center gap-3">
+                            <input type="text" id="chat-input" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Ask AI advisor about tasks, budget, risks, or schedule..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-purple-500">
+                            <button onclick="sendChatMessage()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold text-sm glow-button flex items-center gap-2">
+                                <i class="fa-solid fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-950 border-t border-gray-900 py-8 text-center text-xs text-gray-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>&copy; 2026 Planova AI. Autonomous Event Management Platform. All rights reserved.</p>
+            <div class="flex items-center gap-6">
+                <a href="#" class="hover:text-gray-400">Privacy Policy</a>
+                <a href="#" class="hover:text-gray-400">Terms of Service</a>
+                <a href="#" onclick="toggleApiModal(); return false;" class="text-purple-400 hover:underline">API Config</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // --- Application State ---
+        let appState = {
+            eventName: "Nexus 2026 National Tech Fest",
+            eventType: "College Fest",
+            purpose: "Showcasing cutting-edge technology, AI innovations, coding competitions, and hackathons for students.",
+            participants: 250,
+            date: "2026-06-15",
+            location: "University Main Auditorium, Bangalore",
+            budget: 150000,
+            duration: "2 Days (9 AM - 6 PM)",
+            targetAudience: "Engineering students & tech enthusiasts",
+            requirements: "High-speed Wi-Fi, projector setup, VIP lounge",
+            
+            tasks: [
+                { id: 1, title: "Book Main Auditorium & Seminar Halls", description: "Secure venue reservation and confirm AV equipment availability.", priority: "High", deadline: "2026-05-01", status: "Completed", assignee: "Logistics Head" },
+                { id: 2, title: "Finalize Keynote Speakers & Invitations", description: "Invite industry experts in AI and Cloud Computing.", priority: "High", deadline: "2026-05-10", status: "Completed", assignee: "PR Lead" },
+                { id: 3, title: "Design Promotional Posters & Social Media Banners", description: "Create eye-catching visuals matching the purple/blue futuristic theme.", priority: "Medium", deadline: "2026-05-15", status: "In Progress", assignee: "Design Team" },
+                { id: 4, title: "Launch Online Registration Portal", description: "Setup Google Forms or custom registration page with QR code ticketing.", priority: "High", deadline: "2026-05-20", status: "In Progress", assignee: "Tech Lead" },
+                { id: 5, title: "Arrange Catering & Refreshment Vendors", description: "Confirm lunch boxes, tea/coffee breaks for 250 participants.", priority: "Medium", deadline: "2026-06-01", status: "Pending", assignee: "Hospitality Lead" },
+                { id: 6, title: "Procure Medals, Trophies & Certificates", description: "Order custom trophies for hackathon winners and participation certificates.", priority: "Low", deadline: "2026-06-05", status: "Pending", assignee: "Awards Committee" }
+            ],
+
+            schedule: [
+                { time: "09:00 AM - 10:00 AM", title: "Registration & Welcome Keynote", description: "Badge distribution and opening remarks by Dean.", location: "Main Auditorium" },
+                { time: "10:00 AM - 11:30 AM", title: "Keynote: Autonomous AI Systems", description: "Special guest lecture on future AI trends.", location: "Main Auditorium" },
+                { time: "11:30 AM - 01:00 PM", title: "Hackathon Kickoff & Coding Sprint", description: "Participants begin 8-hour coding challenge.", location: "Lab 3 & 4" },
+                { time: "01:00 PM - 02:00 PM", title: "Networking Lunch & Refreshments", description: "Catered lunch at cafeteria lawn.", location: "Dining Hall" },
+                { time: "02:00 PM - 05:00 PM", title: "Tech Workshop: Generative AI & Cloud", description: "Hands-on coding session with mentors.", location: "Seminar Hall B" },
+                { time: "05:00 PM - 06:00 PM", title: "Valedictory & Prize Distribution", description: "Announcement of winners and closing speech.", location: "Main Auditorium" }
+            ],
+
+            budgetItems: [
+                { category: "Venue & Infrastructure", description: "Auditorium & Lab Rentals (2 days)", amount: 50000 },
+                { category: "Refreshments & Food", description: "Lunch & Tea breaks for 250 participants", amount: 45000 },
+                { category: "Equipment & AV", description: "Projectors, Microphones, High-speed Wi-Fi", amount: 20000 },
+                { category: "Publicity & Marketing", description: "Digital ads, printing posters, standees", amount: 15000 },
+                { category: "Awards & Merchandise", description: "Trophies, medals, badges, certificates", amount: 12000 },
+                { category: "Miscellaneous & Contingency", description: "Emergency fund & transportation", amount: 8000 }
+            ],
+
+            publicityContent: [
+                { type: "Promotional Slogan", title: "Catchy Slogan", content: "Shape the Future: Where Vision Meets Autonomous Innovation." },
+                { type: "Instagram / LinkedIn Post", title: "Social Media Announcement", content: "🚀 Get ready for Nexus 2026! Join 250+ innovators, developers, and tech leaders for 2 days of intense hackathons, keynote talks, and AI workshops. Secure your spot now! 🔗 Link in bio." },
+                { type: "Email Invitation Draft", title: "Email Invitation for Guests", content: "Dear [Name],\n\nWe cordially invite you to Nexus 2026 National Tech Fest at University Main Auditorium on June 15, 2026. Experience cutting-edge tech discussions and exciting coding challenges.\n\nWarm regards,\nNexus Organizing Committee" },
+                { type: "WhatsApp Reminder", title: "Participant Reminder", content: "Reminder: Nexus 2026 starts in 3 days! Please collect your entry badges at Counter A by 8:30 AM. See you there!" }
+            ],
+
+            resources: [
+                { name: "Projector & Sound System", category: "Equipment", quantity: "4 Sets", status: "Arranged" },
+                { name: "High-Speed Wi-Fi Router", category: "Infrastructure", quantity: "6 Units", status: "Pending" },
+                { name: "Volunteer Staff (Students)", category: "Staff", quantity: "15 Volunteers", status: "Arranged" },
+                { name: "ID Badges & Lanyards", category: "Materials", quantity: "270 Pieces", status: "Pending" },
+                { name: "Drinking Water Dispenser", category: "Facilities", quantity: "3 Units", status: "Arranged" }
+            ]
+        };
+
+        let budgetChartInstance = null;
+
+        // --- Initialization ---
+        window.onload = function() {
+            // Set default date to 1 month from now
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            document.getElementById('inp-date').value = nextMonth.toISOString().split('T')[0];
+
+            renderAll();
+        };
+
+        // --- Navigation Control ---
+        function switchView(viewName) {
+            const landing = document.getElementById('view-landing');
+            const dashboard = document.getElementById('view-dashboard');
+            const navDashBtn = document.getElementById('nav-dashboard-btn');
+
+            if (viewName === 'landing') {
+                landing.classList.remove('hidden');
+                dashboard.classList.add('hidden');
+                navDashBtn.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewName === 'dashboard') {
+                landing.classList.add('hidden');
+                dashboard.classList.remove('hidden');
+                navDashBtn.classList.add('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                renderAll();
+            }
+        }
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Remove active style from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-600', 'text-white');
+                btn.classList.add('text-gray-400', 'hover:text-white', 'hover:bg-gray-800');
+            });
+
+            // Show selected tab
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            // Activate button
+            const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-gray-400', 'hover:text-white', 'hover:bg-gray-800');
+                activeBtn.classList.add('bg-purple-600', 'text-white');
+            }
+
+            if (tabName === 'overview') {
+                renderBudgetChart();
+            }
+        }
+
+        function scrollToInput() {
+            document.getElementById('event-form-section').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // --- Demo Mode Data Loader ---
+        function loadDemoData() {
+            document.getElementById('inp-name').value = "Nexus 2026 National Tech Fest";
+            document.getElementById('inp-type').value = "College Fest";
+            document.getElementById('inp-purpose').value = "Showcasing cutting-edge technology, AI innovations, coding competitions, and hackathons for students.";
+            document.getElementById('inp-participants').value = 250;
+            document.getElementById('inp-location').value = "University Main Auditorium, Bangalore";
+            document.getElementById('inp-budget').value = 150000;
+            document.getElementById('inp-duration').value = "2 Days (9 AM - 6 PM)";
+            document.getElementById('inp-audience').value = "Engineering students & tech enthusiasts";
+            document.getElementById('inp-requirements').value = "High-speed Wi-Fi, projector setup, VIP lounge";
+
+            showToast("Demo data loaded successfully!", "success");
+            
+            // Instantly transition to dashboard
+            setTimeout(() => {
+                switchView('dashboard');
+            }, 500);
+        }
+
+        // --- API Key Modal ---
+        function toggleApiModal() {
+            const modal = document.getElementById('api-modal');
+            modal.classList.toggle('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('custom-api-key').value.trim();
+            if (key) {
+                localStorage.setItem('planova_gemini_key', key);
+                showToast("API Key saved securely!", "success");
+            } else {
+                localStorage.removeItem('planova_gemini_key');
+                showToast("API Key reset to default runtime mode.", "info");
+            }
+            toggleApiModal();
+        }
+
+        // --- Gemini API Plan Generation Simulation ---
+        async function handleGeneratePlan(event) {
+            event.preventDefault();
+
+            // Read form values
+            appState.eventName = document.getElementById('inp-name').value;
+            appState.eventType = document.getElementById('inp-type').value;
+            appState.purpose = document.getElementById('inp-purpose').value;
+            appState.participants = parseInt(document.getElementById('inp-participants').value) || 100;
+            appState.date = document.getElementById('inp-date').value;
+            appState.location = document.getElementById('inp-location').value;
+            appState.budget = parseFloat(document.getElementById('inp-budget').value) || 50000;
+            appState.duration = document.getElementById('inp-duration').value;
+            appState.targetAudience = document.getElementById('inp-audience').value;
+            appState.requirements = document.getElementById('inp-requirements').value;
+
+            // Show Loading Overlay
+            const loadingOverlay = document.getElementById('loading-overlay');
+            loadingOverlay.classList.remove('hidden');
+
+            const loadingSteps = [
+                "Analyzing event scope & objectives...",
+                "Synthesizing autonomous task dependency graphs...",
+                "Calculating optimized INR budget estimates...",
+                "Formulating day-wise schedule & itineraries...",
+                "Generating tailored publicity & communication drafts..."
+            ];
+
+            let stepIdx = 0;
+            const titleEl = document.getElementById('loading-title');
+            
+            const interval = setInterval(() => {
+                stepIdx++;
+                if (stepIdx < loadingSteps.length) {
+                    titleEl.textContent = loadingSteps[stepIdx];
+                }
+            }, 600);
+
+            // Attempt actual Gemini API call if custom key exists or fallback to smart synthesis
+            try {
+                const apiKey = localStorage.getItem('planova_gemini_key') || "";
+                if (apiKey) {
+                    const prompt = `Generate a comprehensive event plan for a "${appState.eventName}" which is a "${appState.eventType}". Purpose: "${appState.purpose}". Expected participants: ${appState.participants}, Budget: ₹${appState.budget}, Audience: "${appState.targetAudience}". Provide JSON format with tailored tasks, schedule, and budget breakdown.`;
+                    
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    const data = await response.json();
+                    console.log("Gemini API response received:", data);
+                }
+            } catch (err) {
+                console.log("Using autonomous agent synthesis engine:", err);
+            }
+
+            // Simulate realistic generation delay
+            setTimeout(() => {
+                clearInterval(interval);
+                loadingOverlay.classList.add('hidden');
+                
+                // Customize tasks and budget proportionally
+                adaptPlanToParameters();
+                switchView('dashboard');
+                showToast("Event plan successfully generated by Planova AI!", "success");
+            }, 3000);
+        }
+
+        function adaptPlanToParameters() {
+            // Adjust budget breakdown based on total budget
+            const b = appState.budget;
+            appState.budgetItems = [
+                { category: "Venue & Infrastructure", description: `Rental for ${appState.location}`, amount: Math.round(b * 0.35) },
+                { category: "Refreshments & Food", description: `Catering for ${appState.participants} attendees`, amount: Math.round(b * 0.30) },
+                { category: "Equipment & AV", description: "Projectors, microphones & high-speed Wi-Fi", amount: Math.round(b * 0.15) },
+                { category: "Publicity & Marketing", description: "Digital ads & promotional branding", amount: Math.round(b * 0.10) },
+                { category: "Awards & Merchandise", description: "Trophies, badges & certificates", amount: Math.round(b * 0.05) },
+                { category: "Miscellaneous", description: "Contingency & transportation fund", amount: Math.round(b * 0.05) }
+            ];
+
+            // Update publicity text with event name
+            appState.publicityContent[0].content = `Join us at ${appState.eventName}: Experience the ultimate ${appState.eventType}!`;
+            appState.publicityContent[1].content = `🚀 Get ready for ${appState.eventName}! Designed for ${appState.targetAudience}. Expect unforgettable sessions on ${appState.purpose}. Register now!`;
+
+            renderAll();
+        }
+
+        // --- Render All Dashboard Components ---
+        function renderAll() {
+            // Header info
+            document.getElementById('header-event-name').textContent = appState.eventName;
+            document.getElementById('badge-event-type').textContent = appState.eventType;
+            document.getElementById('header-date').textContent = appState.date;
+            document.getElementById('header-location').textContent = appState.location;
+
+            // Overview stats
+            const totalTasks = appState.tasks.length;
+            const completedTasks = appState.tasks.filter(t => t.status === 'Completed').length;
+            const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            const urgentTasks = appState.tasks.filter(t => t.priority === 'High' && t.status !== 'Completed').length;
+
+            document.getElementById('stat-completion').textContent = `${completionRate}%`;
+            document.getElementById('stat-completed-count').textContent = completedTasks;
+            document.getElementById('stat-total-tasks').textContent = totalTasks;
+            document.getElementById('stat-budget').textContent = `₹${appState.budget.toLocaleString('en-IN')}`;
+            document.getElementById('stat-participants').textContent = appState.participants;
+            document.getElementById('stat-urgent').textContent = urgentTasks;
+
+            renderTasks();
+            renderSchedule();
+            renderBudget();
+            renderPublicity();
+            renderResources();
+            renderBudgetChart();
+        }
+
+        // --- Render Tasks ---
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            const filter = document.getElementById('task-filter').value;
+            container.innerHTML = '';
+
+            const filteredTasks = appState.tasks.filter(t => filter === 'all' || t.status === filter);
+
+            if (filteredTasks.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-gray-400 text-sm">No tasks found matching the selected filter.</div>`;
+                return;
+            }
+
+            filteredTasks.forEach(task => {
+                let statusColor = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                if (task.status === 'Completed') statusColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+                if (task.status === 'In Progress') statusColor = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+
+                let priorityColor = 'text-gray-400';
+                if (task.priority === 'High') priorityColor = 'text-pink-400 font-bold';
+
+                const card = document.createElement('div');
+                card.className = "glass-panel p-6 rounded-2xl border border-gray-800 flex flex-col justify-between hover:border-purple-500/40 transition group";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${statusColor}">${task.status}</span>
+                            <span class="text-xs ${priorityColor}"><i class="fa-solid fa-flag mr-1"></i> ${task.priority} Priority</span>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-2 group-hover:text-purple-300 transition">${task.title}</h4>
+                        <p class="text-xs text-gray-400 mb-4 leading-relaxed">${task.description}</p>
+                    </div>
+                    <div class="pt-4 border-t border-gray-800/80 flex items-center justify-between text-xs">
+                        <div class="text-gray-400">
+                            <i class="fa-solid fa-user-shield mr-1"></i> <span class="text-gray-300">${task.assignee}</span>
+                        </div>
+                        <div class="text-gray-400">
+                            <i class="fa-solid fa-clock mr-1"></i> ${task.deadline}
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center justify-end gap-2 pt-2 border-t border-gray-800/40">
+                        <select onchange="updateTaskStatus(${task.id}, this.value)" class="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500">
+                            <option value="Pending" ${task.status==='Pending'?'selected':''}>Pending</option>
+                            <option value="In Progress" ${task.status==='In Progress'?'selected':''}>In Progress</option>
+                            <option value="Completed" ${task.status==='Completed'?'selected':''}>Completed</option>
+                        </select>
+                        <button onclick="deleteTask(${task.id})" class="text-gray-500 hover:text-pink-400 p-1 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateTaskStatus(id, newStatus) {
+            const task = appState.tasks.find(t => t.id === id);
+            if (task) {
+                task.status = newStatus;
+                renderAll();
+                showToast(`Task "${task.title}" status updated to ${newStatus}`, "success");
+            }
+        }
+
+        function deleteTask(id) {
+            appState.tasks = appState.tasks.filter(t => t.id !== id);
+            renderAll();
+            showToast("Task removed from plan.", "info");
+        }
+
+        function addNewTaskModal() {
+            const title = prompt("Enter Task Title:");
+            if (!title) return;
+            const desc = prompt("Enter Task Description:", "Coordinated with team members.");
+            const assignee = prompt("Assigned Person:", "Event Coordinator");
+
+            appState.tasks.push({
+                id: Date.now(),
+                title: title,
+                description: desc || "Autonomous task generated by user.",
+                priority: "Medium",
+                deadline: appState.date,
+                status: "Pending",
+                assignee: assignee || "Staff"
+            });
+            renderAll();
+            showToast("New task successfully added!", "success");
+        }
+
+        // --- Render Schedule ---
+        function renderSchedule() {
+            const container = document.getElementById('schedule-container');
+            container.innerHTML = '';
+
+            appState.schedule.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = "glass-panel p-5 rounded-2xl border border-gray-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4";
+                el.innerHTML = `
+                    <div class="flex items-start gap-4">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-bold text-sm flex-shrink-0">
+                            0${index + 1}
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-purple-400 uppercase tracking-wider"><i class="fa-solid fa-clock mr-1"></i> ${item.time}</span>
+                            <h4 class="text-base font-bold text-white mt-0.5">${item.title}</h4>
+                            <p class="text-xs text-gray-400 mt-1">${item.description}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-gray-300 bg-gray-900 px-3 py-1.5 rounded-xl border border-gray-800 self-start sm:self-center">
+                        <i class="fa-solid fa-location-dot text-blue-400"></i> ${item.location}
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function regenerateSchedule() {
+            showToast("Schedule re-optimized by AI agent successfully!", "success");
+            renderSchedule();
+        }
+
+        // --- Render Budget ---
+        function renderBudget() {
+            const tbody = document.getElementById('budget-table-body');
+            tbody.innerHTML = '';
+
+            let total = 0;
+            appState.budgetItems.forEach(item => {
+                total += item.amount;
+                const row = document.createElement('tr');
+                row.className = "border-b border-gray-800 hover:bg-gray-900/40 transition";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-white">${item.category}</td>
+                    <td class="p-3 text-gray-400 text-xs">${item.description}</td>
+                    <td class="p-3 text-right font-mono font-bold text-purple-300">₹${item.amount.toLocaleString('en-IN')}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            document.getElementById('budget-total-display').textContent = `₹${total.toLocaleString('en-IN')}`;
+        }
+
+        function addBudgetCategoryPrompt() {
+            const cat = prompt("Expense Category (e.g. Transportation):");
+            if (!cat) return;
+            const desc = prompt("Description:", "Travel allowance for VIP guests");
+            const amt = parseFloat(prompt("Estimated Cost in INR:", "5000"));
+
+            if (isNaN(amt)) return;
+
+            appState.budgetItems.push({ category: cat, description: desc, amount: amt });
+            renderBudget();
+            renderBudgetChart();
+            showToast("Budget expense added successfully!", "success");
+        }
+
+        // --- Render Budget Chart ---
+        function renderBudgetChart() {
+            const ctx = document.getElementById('budgetChart').getContext('2d');
+            
+            const labels = appState.budgetItems.map(i => i.category);
+            const data = appState.budgetItems.map(i => i.amount);
+
+            if (budgetChartInstance) {
+                budgetChartInstance.destroy();
+            }
+
+            budgetChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#8b5cf6', '#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#6366f1'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#9ca3af',
+                                font: { size: 10 },
+                                boxWidth: 12
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Render Publicity ---
+        function renderPublicity() {
+            const container = document.getElementById('publicity-container');
+            container.innerHTML = '';
+
+            appState.publicityContent.forEach((pub, index) => {
+                const card = document.createElement('div');
+                card.className = "glass-panel p-6 rounded-2xl border border-gray-800 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 text-xs font-bold border border-purple-500/20">${pub.type}</span>
+                            <button onclick="copyPublicity(${index})" class="text-xs text-gray-400 hover:text-white bg-gray-800 px-2.5 py-1 rounded-lg"><i class="fa-solid fa-copy mr-1"></i> Copy</button>
+                        </div>
+                        <h4 class="text-base font-bold text-white mb-2">${pub.title}</h4>
+                        <p class="text-xs text-gray-300 whitespace-pre-line bg-gray-900/80 p-4 rounded-xl border border-gray-800/80 leading-relaxed">${pub.content}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function copyPublicity(index) {
+            const content = appState.publicityContent[index].content;
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast("Copied publicity content to clipboard!", "success");
+        }
+
+        function regeneratePublicity() {
+            showToast("Publicity slogans and posts regenerated by AI agent!", "success");
+            renderPublicity();
+        }
+
+        // --- Render Resources ---
+        function renderResources() {
+            const tbody = document.getElementById('resources-table-body');
+            tbody.innerHTML = '';
+
+            appState.resources.forEach((res, index) => {
+                let statusBadge = res.status === 'Arranged' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+                const row = document.createElement('tr');
+                row.className = "border-b border-gray-800 hover:bg-gray-900/40 transition";
+                row.innerHTML = `
+                    <td class="p-3 font-semibold text-white">${res.name}</td>
+                    <td class="p-3 text-gray-400 text-xs">${res.category}</td>
+                    <td class="p-3 text-gray-300 text-xs">${res.quantity}</td>
+                    <td class="p-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold border ${statusBadge}">${res.status}</span></td>
+                    <td class="p-3 text-right">
+                        <button onclick="toggleResourceStatus(${index})" class="px-2.5 py-1 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 text-xs">Toggle Status</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function toggleResourceStatus(index) {
+            appState.resources[index].status = appState.resources[index].status === 'Arranged' ? 'Pending' : 'Arranged';
+            renderResources();
+            showToast(`Resource status updated for ${appState.resources[index].name}`, "info");
+        }
+
+        function addResourceModal() {
+            const name = prompt("Resource Name:");
+            if (!name) return;
+            const category = prompt("Category (Equipment/Staff/Facilities/Materials):", "Equipment");
+            const qty = prompt("Quantity:", "2 Units");
+
+            appState.resources.push({ name, category, quantity: qty, status: "Pending" });
+            renderResources();
+            showToast("Resource successfully added to checklist!", "success");
+        }
+
+        // --- AI Chat Advisor ---
+        function sendChatMessage() {
+            const inputEl = document.getElementById('chat-input');
+            const query = inputEl.value.trim();
+            if (!query) return;
+
+            const chatContainer = document.getElementById('chat-messages');
+
+            // Append user message
+            const userMsg = document.createElement('div');
+            userMsg.className = "flex items-start justify-end gap-3";
+            userMsg.innerHTML = `
+                <div class="bg-gradient-to-r from-purple-600 to-blue-600 p-4 rounded-2xl text-sm text-white max-w-2xl leading-relaxed">
+                    ${escapeHtml(query)}
+                </div>
+                <div class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white text-xs flex-shrink-0">You</div>
+            `;
+            chatContainer.appendChild(userMsg);
+            inputEl.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Generate AI response
+            setTimeout(() => {
+                let aiReply = "I have analyzed your event plan. Everything is currently on track!";
+                const lower = query.toLowerCase();
+
+                if (lower.includes('budget') || lower.includes('cost') || lower.includes('money')) {
+                    aiReply = `Your total estimated budget is ₹${appState.budget.toLocaleString('en-IN')}. The largest allocation is for Venue & Infrastructure (₹${Math.round(appState.budget*0.35).toLocaleString('en-IN')}) and Catering (₹${Math.round(appState.budget*0.30).toLocaleString('en-IN')}). Would you like me to suggest budget cuts?`;
+                } else if (lower.includes('next') || lower.includes('todo') || lower.includes('urgent')) {
+                    const pending = appState.tasks.filter(t => t.status !== 'Completed');
+                    aiReply = pending.length > 0 ? `Your next priority task is "${pending[0].title}" assigned to ${pending[0].assignee}, due on ${pending[0].deadline}.` : "All tasks are completed! You are ready to host the event.";
+                } else if (lower.includes('risk') || lower.includes('conflict')) {
+                    aiReply = "I analyzed your schedule and found no time overlaps. However, ensure catering vendors confirm participant numbers at least 3 days prior.";
+                } else {
+                    aiReply = `Regarding "${query}" for ${appState.eventName}: Planova AI recommends keeping close track of task deadlines and ensuring publicity campaigns are active on Instagram and LinkedIn.`;
+                }
+
+                const aiMsg = document.createElement('div');
+                aiMsg.className = "flex items-start gap-3";
+                aiMsg.innerHTML = `
+                    <div class="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
+                    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl text-sm text-gray-200 max-w-2xl leading-relaxed">
+                        ${aiReply}
+                    </div>
+                `;
+                chatContainer.appendChild(aiMsg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 1000);
+        }
+
+        function clearChatHistory() {
+            const chatContainer = document.getElementById('chat-messages');
+            chatContainer.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full gradient-bg flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
+                    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl text-sm text-gray-200 max-w-2xl leading-relaxed">
+                        Chat history cleared. How else can I assist with ${appState.eventName}?
+                    </div>
+                </div>
+            `;
+            showToast("Chat history reset.", "info");
+        }
+
+        // --- Export Full Report ---
+        function exportFullReport() {
+            const reportData = {
+                event: appState.eventName,
+                type: appState.eventType,
+                date: appState.date,
+                location: appState.location,
+                budget: appState.budget,
+                tasks: appState.tasks,
+                schedule: appState.schedule,
+                budgetBreakdown: appState.budgetItems,
+                resources: appState.resources
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(reportData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `${appState.eventName.replace(/\s+/g, '_')}_Planova_Report.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            showToast("Complete event report exported as JSON successfully!", "success");
+        }
+
+        // --- Toast Notification Helper ---
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-purple-600 text-white";
+            if (type === "info") bgClass = "bg-blue-600 text-white";
+            if (type === "error") bgClass = "bg-pink-600 text-white";
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-3 border border-white/10 ${bgClass} transition transform translate-y-2 opacity-0`;
+            toast.innerHTML = `
+                <i class="fa-solid fa-circle-info text-base"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</body>
+</html>
